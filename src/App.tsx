@@ -1,35 +1,91 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import SearchForm from "./components/SearchForm";
+import SearchResults from "./components/SearchResults";
+import AlbumCover from "./components/AlbumCover";
+import { fetchAlbumImages, fetchQueryJSON } from "./api";
+import AlbumInfo from "./classes/Album";
+import AlbumCoverDownloadButton from "./components/AlbumCoverDownloadButton";
+
+const numAlbumsToFetch = 5;
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [albumsArray, setAlbumsArray] = useState([] as AlbumInfo[]);
+  const [selectedAlbumID, setSelectedAlbumID] = useState(-1);
+  const [albumCoverURL, setAlbumCoverURL] = useState(('' as string | undefined));
+
+  useEffect(() => {
+    setAlbumCoverURL(albumsArray.find(album => album.id === selectedAlbumID)?.coverImageURL);
+  }, [selectedAlbumID]);
+
+  async function fetchAlbumInfo() {
+    const data = await fetchQueryJSON(searchQuery);
+    const newAlbumsArray: Array<AlbumInfo> = [];
+
+    await Promise.all(
+      data.releases.slice(0, numAlbumsToFetch).map(async (release: any) => {
+        try {
+          const matchScore = release.score;
+          const mbid = release.id;
+          console.log(mbid);
+          const [albumCoverURL, albumCoverThumbURL] =
+            await fetchAlbumImages(mbid);
+          const album = new AlbumInfo(
+            matchScore,
+            albumCoverURL,
+            albumCoverThumbURL,
+          );
+          newAlbumsArray.push(album);
+        } catch (error) {
+          console.error("Caught error: ", error);
+        }
+      }),
+    );
+
+    newAlbumsArray.sort((a, b) => b.matchScore - a.matchScore);
+    setSelectedAlbumID(newAlbumsArray[0].id);
+    setAlbumsArray(newAlbumsArray);
+  }
+
+  useEffect(() => {
+    if (searchQuery !== "") {
+      fetchAlbumInfo();
+    }
+  }, [searchQuery]);
 
   return (
     <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <main className="h-screen">
+        <div className="flex flex-col items-center">
+          <header className="bg-gray-800 text-white p-4 w-full">
+            {" "}
+            Album Cover Search{" "}
+          </header>
+          <SearchForm
+            onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+              event.preventDefault();
+              const element = document.getElementById(
+                "album-search-input",
+              ) as HTMLInputElement;
+              const query = element.value;
+              setSearchQuery(query);
+            }}
+          />
+          <SearchResults
+            albumsArray={albumsArray}
+            selectedAlbumID={selectedAlbumID}
+            albumCoverThumbOnClick={(albumID: number) =>
+              setSelectedAlbumID(albumID)
+            }
+          />
+          <AlbumCover albumCoverImageURL={albumCoverURL} />
+          <AlbumCoverDownloadButton
+            selectedAlbumCoverImageURL={albumCoverURL}
+          />
+        </div>
+      </main>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
