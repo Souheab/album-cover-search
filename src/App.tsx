@@ -27,7 +27,6 @@ function App() {
         try {
           const matchScore = release.score;
           const mbid = release.id;
-          console.log(mbid);
           const [albumCoverURL, albumCoverThumbURL] =
             await fetchAlbumImages(mbid);
           const album = new AlbumInfo(

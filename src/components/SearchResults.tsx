@@ -10,7 +10,6 @@ export default function SearchResults(props: SearchResultsProps) {
   return (
     <div className="flex">
       {props.albumsArray.map((album) => {
-        console.log(`Sel id: ${props.selectedAlbumID}, proided id ${album.id}`);
         return (
           <img
             onClick={
